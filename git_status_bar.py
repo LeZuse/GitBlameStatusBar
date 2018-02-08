@@ -3,7 +3,24 @@ import sublime_plugin
 import subprocess
 import os
 import re
+from threading import Timer
 
+def debounce(wait):
+    """ Decorator that will postpone a functions
+        execution until after wait seconds
+        have elapsed since the last time it was invoked. """
+    def decorator(fn):
+        def debounced(*args, **kwargs):
+            def call_it():
+                fn(*args, **kwargs)
+            try:
+                debounced.t.cancel()
+            except(AttributeError):
+                pass
+            debounced.t = Timer(wait, call_it)
+            debounced.t.start()
+        return debounced
+    return decorator
 
 def plugin_loaded():
     s = sublime.load_settings("Git.sublime-settings")
@@ -123,8 +140,22 @@ class GitManager:
             ret = ret + "+%d" % b
         return self.prefix + ret
 
+    def blame_badge(self):
+        file = self.view.file_name()
+        (row, col) = self.view.rowcol(self.view.sel()[0].begin())
+
+        blame = self.run_git(["blame", "-s", "-L " + str(row + 1) + ",+1", file])
+        sha = blame.split('\n')[0].split(' ')[0]
+
+        # uncommitted line
+        if sha == '00000000':
+            return ''
+
+        return self.run_git(["log", "-1", "--format=%h: %s (%an)", sha.replace('^', '')])
+
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
+    @debounce(0.5)
     def update_status_bar(self, view):
         sublime.set_timeout_async(lambda: self._update_status_bar(view))
 
@@ -132,7 +163,7 @@ class GitStatusBarHandler(sublime_plugin.EventListener):
         if not view or view.is_scratch() or view.settings().get('is_widget'):
             return
         gm = GitManager(view)
-        badge = gm.badge()
+        badge = gm.blame_badge()
         if badge:
             view.set_status("git-statusbar", badge)
         else:
@@ -156,6 +187,10 @@ class GitStatusBarHandler(sublime_plugin.EventListener):
     def on_pre_close(self, view):
         self.update_status_bar(view)
 
+    def on_selection_modified_async(self, view):
+        self.update_status_bar(view)
+
     def on_window_command(self, window, command_name, args):
         if command_name == "hide_panel":
             self.update_status_bar(window.active_view())
+
