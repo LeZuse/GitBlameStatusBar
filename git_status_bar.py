@@ -151,7 +151,7 @@ class GitManager:
         if sha == '00000000':
             return ''
 
-        return self.run_git(["log", "-1", "--format=%h: %s (%an)", sha.replace('^', '')])
+        return self.run_git(["log", "-1", "--date=relative", "--format=%h: %s (%an) %ad", sha.replace('^', '')])
 
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
