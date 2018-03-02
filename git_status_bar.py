@@ -142,6 +142,10 @@ class GitManager:
 
     def blame_badge(self):
         file = self.view.file_name()
+
+        if not file:
+            return ''
+
         (row, col) = self.view.rowcol(self.view.sel()[0].begin())
 
         blame = self.run_git(["blame", "-s", "-L " + str(row + 1) + ",+1", file])
@@ -151,7 +155,7 @@ class GitManager:
         if sha == '00000000':
             return ''
 
-        return self.run_git(["log", "-1", "--date=relative", "--format=%h: %s (%an) %ad", sha.replace('^', '')])
+        return self.run_git(["log", "-1", "--date=relative", "--format=%h: %s (%an) %ad", sha.replace('^', '')])[:-1]
 
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
