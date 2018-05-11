@@ -148,7 +148,7 @@ class GitManager:
 
         (row, col) = self.view.rowcol(self.view.sel()[0].begin())
 
-        blame = self.run_git(["blame", "-s", "-L " + str(row + 1) + ",+1", file])
+        blame = self.run_git(["blame", "-s", "-w", "-M", "-L " + str(row + 1) + ",+1", file])
         sha = blame.split('\n')[0].split(' ')[0]
 
         # uncommitted line
