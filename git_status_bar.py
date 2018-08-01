@@ -4,6 +4,7 @@ import subprocess
 import os
 import re
 from threading import Timer
+import json
 
 def debounce(wait):
     """ Decorator that will postpone a functions
@@ -47,12 +48,50 @@ def plugin_unloaded():
         sublime.save_settings("Git.sublime-settings")
 
 
+class GithubApi:
+    def __init__(self):
+        s = sublime.load_settings("GitStatusBar.sublime-settings")
+        self.token = s.get("github_token", "")
+
+    def run_curl(self, url):
+        plat = sublime.platform()
+        if type(url) == str:
+            url = [url + '&access_token=' + self.token]
+        cmd = ['curl'] + url
+        if plat == "windows":
+            # make sure console does not come up
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 startupinfo=startupinfo)
+        else:
+            my_env = os.environ.copy()
+            my_env["PATH"] = "/usr/local/bin:/usr/bin:" + my_env["PATH"]
+            p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 env=my_env)
+        p.wait()
+        stdoutdata, _ = p.communicate()
+        return stdoutdata.decode('utf-8')
+
+    def search_pr(self, sha):
+        if self.token == '':
+            return
+
+        result = self.run_curl('https://api.github.com/search/issues?q=' + sha)
+        data = json.loads(result)
+
+        if data and data.get('total_count') > 0:
+            return data.get('items')[0].get('number')
+
+        return ''
+
 class GitManager:
     def __init__(self, view):
         self.view = view
         s = sublime.load_settings("GitStatusBar.sublime-settings")
         self.git = s.get("git", "git")
         self.prefix = s.get("prefix", "")
+        self.github_api = GithubApi()
 
     def run_git(self, cmd, cwd=None):
         plat = sublime.platform()
@@ -155,7 +194,10 @@ class GitManager:
         if sha == '00000000':
             return ''
 
-        return self.run_git(["log", "-1", "--date=relative", "--format=%h: %s (%an) %ad", sha.replace('^', '')])[:-1]
+        pr = self.github_api.search_pr(sha)
+        text = "%h: %s (%an) %ad #" + str(pr)
+
+        return self.run_git(["log", "-1", "--date=relative", "--format=" + text, sha.replace('^', '')])[:-1]
 
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
