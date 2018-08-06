@@ -75,15 +75,19 @@ class GithubApi:
 
     def search_pr(self, sha):
         if self.token == '':
-            return
+            return [None, None]
 
         result = self.run_curl('https://api.github.com/search/issues?q=' + sha)
         data = json.loads(result)
 
-        if data and data.get('total_count') > 0:
-            return data.get('items')[0].get('number')
+        if not data or not 'total_count' in data or data.get('total_count') < 1:
+            return [None, None]
 
-        return ''
+        number = data.get('items')[0].get('number')
+        pr = data.get('items')[0].get('pull_request')
+
+        return [number, pr.get('html_url')]
+
 
 class GitManager:
     def __init__(self, view):
@@ -179,7 +183,7 @@ class GitManager:
             ret = ret + "+%d" % b
         return self.prefix + ret
 
-    def blame_badge(self):
+    def blame_sha(self):
         file = self.view.file_name()
 
         if not file:
@@ -190,15 +194,45 @@ class GitManager:
         blame = self.run_git(["blame", "-s", "-w", "-M", "-L " + str(row + 1) + ",+1", file])
         sha = blame.split('\n')[0].split(' ')[0]
 
+        # remove special mark
+        sha = sha.replace('^', '')
+
+        return sha
+
+    def blame_pr(self, sha):
+        return self.github_api.search_pr(sha)
+
+    def blame_badge(self):
+        sha = self.blame_sha()
+
         # uncommitted line
         if sha == '00000000':
-            return ''
+            return '[uncommitted]'
 
-        pr = self.github_api.search_pr(sha)
-        text = "%h: %s (%an) %ad #" + str(pr)
+        text = "%h: %s (%an) %ad"
+        pr, url = self.blame_pr(sha)
 
-        return self.run_git(["log", "-1", "--date=relative", "--format=" + text, sha.replace('^', '')])[:-1]
+        if pr:
+            text = text +  " #" + str(pr)
 
+        return self.run_git(["log", "-1", "--date=relative", "--format=" + text, sha])[:-1]
+
+class GitBlameStatusBarCommand(sublime_plugin.TextCommand):
+    def open_url(self, url):
+        sublime.active_window().run_command('open_url', {'url': url})
+
+    def run(self, edit, page='/'):
+        print(page)
+        gm = GitManager(self.view)
+        sha = gm.blame_sha()
+
+        if sha == '00000000':
+            return
+
+        pr, url = gm.blame_pr(sha)
+
+        if pr:
+            self.open_url(url + page)
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
     @debounce(0.5)

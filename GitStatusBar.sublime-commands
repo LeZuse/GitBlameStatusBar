@@ -1,0 +1,13 @@
+[
+  {
+    "caption": "Git Blame Status: Open PR changed files",
+    "command": "git_blame_status_bar",
+    "args": {
+      "page": "/files"
+    }
+  },
+  {
+    "caption": "Git Blame Status: Open PR description",
+    "command": "git_blame_status_bar"
+  },
+]

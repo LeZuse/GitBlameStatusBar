@@ -9,7 +9,7 @@ The `sublime-text-git` status bar will be disabled automatically by this plugin.
 
 ### TODO
 - [ ] Add command "Open/Copy current line SHA"
-- [ ] Add command "Open/Copy current line PR URL"
+- [x] Add command "Open/Copy current line PR URL"
 - [ ] Add command "List current line PR history"
 
 ### Thanks
