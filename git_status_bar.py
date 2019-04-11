@@ -222,7 +222,6 @@ class GitBlameStatusBarCommand(sublime_plugin.TextCommand):
         sublime.active_window().run_command('open_url', {'url': url})
 
     def run(self, edit, page='/'):
-        print(page)
         gm = GitManager(self.view)
         sha = gm.blame_sha()
 
@@ -233,6 +232,27 @@ class GitBlameStatusBarCommand(sublime_plugin.TextCommand):
 
         if pr:
             self.open_url(url + page)
+
+class GitBlameStatusBarFile(sublime_plugin.TextCommand):
+    def open_url(self, url):
+        sublime.active_window().run_command('open_url', {'url': url})
+
+    def run(self, edit, branch=None):
+        # opened folders
+        folders = self.view.window().folders()
+        # TODO: probably not the best way
+        active_folder = self.view.window().folders()[0]
+        relpath = self.view.file_name().replace(active_folder, '')
+
+        # TODO: strong assumption here
+        repo = active_folder.split('/')[-1]
+        org = 'productboard'
+
+        if branch == None:
+            gm = GitManager(self.view)
+            branch = gm.branch()
+
+        self.open_url('https://github.com/' + org + '/' + repo + '/blob/' + branch + relpath)
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
     @debounce(0.5)
