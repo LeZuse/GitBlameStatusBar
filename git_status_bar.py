@@ -244,6 +244,12 @@ class GitBlameStatusBarFile(sublime_plugin.TextCommand):
         active_folder = self.view.window().folders()[0]
         relpath = self.view.file_name().replace(active_folder, '')
 
+        # TODO: might not be stable? :shrug:
+        (row, col) = self.view.rowcol(self.view.sel()[0].begin())
+
+        if row:
+            row = '#L' + str(row + 1)
+
         # TODO: strong assumption here
         repo = active_folder.split('/')[-1]
         org = 'productboard'
@@ -252,7 +258,7 @@ class GitBlameStatusBarFile(sublime_plugin.TextCommand):
             gm = GitManager(self.view)
             branch = gm.branch()
 
-        self.open_url('https://github.com/' + org + '/' + repo + '/blob/' + branch + relpath)
+        self.open_url('https://github.com/' + org + '/' + repo + '/blob/' + branch + relpath + row)
 
 class GitStatusBarHandler(sublime_plugin.EventListener):
     @debounce(0.5)
